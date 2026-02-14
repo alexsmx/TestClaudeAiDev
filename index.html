@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#1a1a2e">
+  <title>Interval Timer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- SCREEN: Workout Selection -->
+    <div id="screen-select" class="screen active">
+      <header>
+        <h1>Interval Timer</h1>
+        <p class="subtitle">Choose your workout</p>
+      </header>
+      <div class="workout-grid" id="workout-grid">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+    <!-- SCREEN: Workout Config -->
+    <div id="screen-config" class="screen">
+      <header>
+        <button class="btn-back" id="btn-back-config" aria-label="Back">&larr;</button>
+        <h2 id="config-title">Configure</h2>
+      </header>
+      <div class="config-form" id="config-form">
+        <div class="config-field">
+          <label for="cfg-work">Work (seconds)</label>
+          <div class="stepper">
+            <button class="stepper-btn" data-target="cfg-work" data-delta="-5">&minus;</button>
+            <input type="number" id="cfg-work" min="5" max="300" value="30">
+            <button class="stepper-btn" data-target="cfg-work" data-delta="5">+</button>
+          </div>
+        </div>
+        <div class="config-field">
+          <label for="cfg-rest">Rest (seconds)</label>
+          <div class="stepper">
+            <button class="stepper-btn" data-target="cfg-rest" data-delta="-5">&minus;</button>
+            <input type="number" id="cfg-rest" min="0" max="300" value="10">
+            <button class="stepper-btn" data-target="cfg-rest" data-delta="5">+</button>
+          </div>
+        </div>
+        <div class="config-field">
+          <label for="cfg-rounds">Rounds</label>
+          <div class="stepper">
+            <button class="stepper-btn" data-target="cfg-rounds" data-delta="-1">&minus;</button>
+            <input type="number" id="cfg-rounds" min="1" max="50" value="8">
+            <button class="stepper-btn" data-target="cfg-rounds" data-delta="1">+</button>
+          </div>
+        </div>
+        <div class="config-field">
+          <label for="cfg-prep">Get Ready (seconds)</label>
+          <div class="stepper">
+            <button class="stepper-btn" data-target="cfg-prep" data-delta="-1">&minus;</button>
+            <input type="number" id="cfg-prep" min="3" max="30" value="10">
+            <button class="stepper-btn" data-target="cfg-prep" data-delta="1">+</button>
+          </div>
+        </div>
+      </div>
+      <div class="config-summary" id="config-summary"></div>
+      <button class="btn-start" id="btn-start">Start Workout</button>
+    </div>
+
+    <!-- SCREEN: Active Timer -->
+    <div id="screen-timer" class="screen">
+      <header class="timer-header">
+        <button class="btn-back" id="btn-back-timer" aria-label="Back">&larr;</button>
+        <span class="round-indicator" id="round-indicator">Round 1/8</span>
+      </header>
+      <div class="timer-display">
+        <div class="phase-label" id="phase-label">GET READY</div>
+        <div class="countdown-ring-container">
+          <svg class="countdown-ring" viewBox="0 0 200 200">
+            <circle class="ring-bg" cx="100" cy="100" r="90" />
+            <circle class="ring-progress" id="ring-progress" cx="100" cy="100" r="90" />
+          </svg>
+          <div class="countdown-time" id="countdown-time">10</div>
+        </div>
+        <div class="next-up" id="next-up">Next: Work</div>
+      </div>
+      <div class="timer-controls">
+        <button class="timer-btn" id="btn-pause" aria-label="Pause">
+          <span class="icon-pause" id="icon-pause">&#9646;&#9646;</span>
+          <span class="icon-play hidden" id="icon-play">&#9654;</span>
+        </button>
+        <button class="timer-btn timer-btn-stop" id="btn-stop" aria-label="Stop">&#9632;</button>
+      </div>
+      <div class="progress-bar-container">
+        <div class="progress-bar" id="progress-bar"></div>
+      </div>
+    </div>
+
+    <!-- SCREEN: Complete -->
+    <div id="screen-complete" class="screen">
+      <div class="complete-content">
+        <div class="complete-icon">&#10003;</div>
+        <h2>Workout Complete!</h2>
+        <div class="complete-stats" id="complete-stats"></div>
+        <button class="btn-start" id="btn-restart">Do It Again</button>
+        <button class="btn-secondary" id="btn-home">Back to Workouts</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
