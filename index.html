@@ -45,12 +45,20 @@
             <button class="stepper-btn" data-target="cfg-rest" data-delta="5">+</button>
           </div>
         </div>
-        <div class="config-field">
+        <div class="config-field" id="field-rounds">
           <label for="cfg-rounds">Rounds</label>
           <div class="stepper">
             <button class="stepper-btn" data-target="cfg-rounds" data-delta="-1">&minus;</button>
             <input type="number" id="cfg-rounds" min="1" max="50" value="8">
             <button class="stepper-btn" data-target="cfg-rounds" data-delta="1">+</button>
+          </div>
+        </div>
+        <div class="config-field" id="field-sets" style="display:none">
+          <label for="cfg-sets">Sets (repeat circuit)</label>
+          <div class="stepper">
+            <button class="stepper-btn" data-target="cfg-sets" data-delta="-1">&minus;</button>
+            <input type="number" id="cfg-sets" min="1" max="10" value="2">
+            <button class="stepper-btn" data-target="cfg-sets" data-delta="1">+</button>
           </div>
         </div>
         <div class="config-field">
@@ -62,6 +70,7 @@
           </div>
         </div>
       </div>
+      <div class="exercise-list" id="exercise-list"></div>
       <div class="config-summary" id="config-summary"></div>
       <button class="btn-start" id="btn-start">Start Workout</button>
     </div>
@@ -74,6 +83,7 @@
       </header>
       <div class="timer-display">
         <div class="phase-label" id="phase-label">GET READY</div>
+        <div class="exercise-name" id="exercise-name"></div>
         <div class="countdown-ring-container">
           <svg class="countdown-ring" viewBox="0 0 200 200">
             <circle class="ring-bg" cx="100" cy="100" r="90" />

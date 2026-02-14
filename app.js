@@ -9,6 +9,15 @@ const WORKOUTS = [
     defaults: { work: 30, rest: 15, rounds: 10, prep: 10 }
   },
   {
+    id: 'bodyweight',
+    name: 'Bodyweight',
+    icon: '\u{1F3C3}',
+    desc: 'Circuit of bodyweight exercises',
+    color: 'yellow',
+    defaults: { work: 20, rest: 10, sets: 2, prep: 10 },
+    exercises: ['Jumping Jacks', 'High Knees', 'Sit-ups', 'Push-ups', 'Rowers', 'Bicycles', 'Mountain Climbers']
+  },
+  {
     id: 'tabata',
     name: 'Tabata',
     icon: '\u26A1',
@@ -78,6 +87,11 @@ const iconPause = $('#icon-pause');
 const iconPlay = $('#icon-play');
 const progressBar = $('#progress-bar');
 const completeStats = $('#complete-stats');
+const cfgSets = $('#cfg-sets');
+const fieldSets = $('#field-sets');
+const fieldRounds = $('#field-rounds');
+const exerciseListEl = $('#exercise-list');
+const exerciseNameEl = $('#exercise-name');
 
 // ===== STATE =====
 let currentWorkout = null;
@@ -160,21 +174,58 @@ function openConfig(workout) {
   configTitle.textContent = workout.name;
   cfgWork.value = workout.defaults.work;
   cfgRest.value = workout.defaults.rest;
-  cfgRounds.value = workout.defaults.rounds;
   cfgPrep.value = workout.defaults.prep;
+
+  if (workout.exercises) {
+    fieldRounds.style.display = 'none';
+    fieldSets.style.display = '';
+    cfgSets.value = workout.defaults.sets || 2;
+    cfgRounds.value = workout.exercises.length * (parseInt(cfgSets.value) || 2);
+    renderExerciseList(workout.exercises);
+    exerciseListEl.style.display = '';
+  } else {
+    fieldRounds.style.display = '';
+    fieldSets.style.display = 'none';
+    cfgRounds.value = workout.defaults.rounds;
+    exerciseListEl.style.display = 'none';
+    exerciseListEl.innerHTML = '';
+  }
+
   updateConfigSummary();
   showScreen('config');
+}
+
+function renderExerciseList(exercises) {
+  exerciseListEl.innerHTML = '<div class="exercise-list-title">Exercises</div>' +
+    exercises.map((ex, i) =>
+      `<div class="exercise-list-item"><span class="exercise-num">${i + 1}</span>${ex}</div>`
+    ).join('');
 }
 
 function updateConfigSummary() {
   const work = parseInt(cfgWork.value) || 0;
   const rest = parseInt(cfgRest.value) || 0;
-  const rounds = parseInt(cfgRounds.value) || 0;
   const prep = parseInt(cfgPrep.value) || 0;
-  const total = prep + (work + rest) * rounds - rest; // last round has no rest
+  let rounds;
+
+  if (currentWorkout && currentWorkout.exercises) {
+    const sets = parseInt(cfgSets.value) || 1;
+    rounds = currentWorkout.exercises.length * sets;
+    cfgRounds.value = rounds;
+  } else {
+    rounds = parseInt(cfgRounds.value) || 0;
+  }
+
+  const total = prep + (work + rest) * rounds - rest;
   const mins = Math.floor(total / 60);
   const secs = total % 60;
-  configSummary.textContent = `Total time: ${mins}m ${secs.toString().padStart(2, '0')}s \u2022 ${rounds} rounds`;
+
+  if (currentWorkout && currentWorkout.exercises) {
+    const sets = parseInt(cfgSets.value) || 1;
+    configSummary.textContent = `Total: ${mins}m ${secs.toString().padStart(2, '0')}s \u2022 ${currentWorkout.exercises.length} exercises \u00D7 ${sets} set${sets > 1 ? 's' : ''}`;
+  } else {
+    configSummary.textContent = `Total time: ${mins}m ${secs.toString().padStart(2, '0')}s \u2022 ${rounds} rounds`;
+  }
 }
 
 // Stepper buttons
@@ -189,7 +240,7 @@ document.addEventListener('click', (e) => {
 });
 
 // Input change
-[cfgWork, cfgRest, cfgRounds, cfgPrep].forEach(input => {
+[cfgWork, cfgRest, cfgRounds, cfgPrep, cfgSets].forEach(input => {
   input.addEventListener('change', updateConfigSummary);
 });
 
@@ -197,11 +248,17 @@ document.addEventListener('click', (e) => {
 const RING_CIRCUMFERENCE = 2 * Math.PI * 90; // r=90
 
 function startWorkout() {
+  const exercises = currentWorkout?.exercises || null;
+  const sets = exercises ? (parseInt(cfgSets.value) || 2) : null;
+  const rounds = exercises ? exercises.length * sets : (parseInt(cfgRounds.value) || 8);
+
   const config = {
     work: parseInt(cfgWork.value) || 30,
     rest: parseInt(cfgRest.value) || 10,
-    rounds: parseInt(cfgRounds.value) || 8,
-    prep: parseInt(cfgPrep.value) || 10
+    rounds: rounds,
+    prep: parseInt(cfgPrep.value) || 10,
+    exercises: exercises,
+    sets: sets
   };
 
   timerState = {
@@ -291,22 +348,57 @@ function updateTimerDisplay() {
   ringProgress.style.strokeDashoffset = RING_CIRCUMFERENCE - offset;
   ringProgress.className = 'ring-progress phase-' + phase;
 
-  // Round indicator
-  roundIndicator.textContent = `Round ${round}/${config.rounds}`;
+  if (config.exercises) {
+    const exIdx = (round - 1) % config.exercises.length;
+    const nextExIdx = round % config.exercises.length;
+    const setNum = Math.floor((round - 1) / config.exercises.length) + 1;
 
-  // Next up
-  if (phase === 'prep') {
-    nextUp.textContent = 'Next: Work';
-  } else if (phase === 'work') {
-    if (round >= config.rounds) {
-      nextUp.textContent = 'Last round!';
-    } else if (config.rest > 0) {
-      nextUp.textContent = 'Next: Rest';
-    } else {
+    // Exercise name
+    if (phase === 'prep') {
+      exerciseNameEl.textContent = config.exercises[0];
+    } else if (phase === 'work') {
+      exerciseNameEl.textContent = config.exercises[exIdx];
+    } else if (phase === 'rest') {
+      exerciseNameEl.textContent = 'Next: ' + config.exercises[nextExIdx];
+    }
+    exerciseNameEl.className = 'exercise-name phase-' + phase;
+    exerciseNameEl.style.display = '';
+
+    // Round indicator
+    roundIndicator.textContent = `Set ${setNum}/${config.sets} \u2022 Ex ${exIdx + 1}/${config.exercises.length}`;
+
+    // Next up
+    if (phase === 'prep') {
+      nextUp.textContent = `${config.exercises.length} exercises \u00D7 ${config.sets} sets`;
+    } else if (phase === 'work') {
+      if (round >= config.rounds) {
+        nextUp.textContent = 'Last exercise!';
+      } else {
+        nextUp.textContent = `Next: ${config.exercises[nextExIdx]}`;
+      }
+    } else if (phase === 'rest') {
+      nextUp.textContent = 'Get ready!';
+    }
+  } else {
+    exerciseNameEl.style.display = 'none';
+
+    // Round indicator
+    roundIndicator.textContent = `Round ${round}/${config.rounds}`;
+
+    // Next up
+    if (phase === 'prep') {
+      nextUp.textContent = 'Next: Work';
+    } else if (phase === 'work') {
+      if (round >= config.rounds) {
+        nextUp.textContent = 'Last round!';
+      } else if (config.rest > 0) {
+        nextUp.textContent = 'Next: Rest';
+      } else {
+        nextUp.textContent = `Next: Round ${round + 1}`;
+      }
+    } else if (phase === 'rest') {
       nextUp.textContent = `Next: Round ${round + 1}`;
     }
-  } else if (phase === 'rest') {
-    nextUp.textContent = `Next: Round ${round + 1}`;
   }
 
   // Overall progress bar
@@ -356,11 +448,9 @@ function finishWorkout() {
   const secs = elapsed % 60;
   const { config } = timerState;
 
-  completeStats.innerHTML = `
-    ${config.rounds} rounds completed<br>
-    ${config.work}s work / ${config.rest}s rest<br>
-    Total time: ${mins}m ${secs.toString().padStart(2, '0')}s
-  `;
+  completeStats.innerHTML = config.exercises
+    ? `${config.exercises.length} exercises \u00D7 ${config.sets} sets completed<br>${config.work}s work / ${config.rest}s rest<br>Total time: ${mins}m ${secs.toString().padStart(2, '0')}s`
+    : `${config.rounds} rounds completed<br>${config.work}s work / ${config.rest}s rest<br>Total time: ${mins}m ${secs.toString().padStart(2, '0')}s`;
 
   showScreen('complete');
 }
