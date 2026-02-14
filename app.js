@@ -15,7 +15,7 @@ const WORKOUTS = [
     desc: 'Circuit of bodyweight exercises',
     color: 'yellow',
     defaults: { work: 20, rest: 10, sets: 2, prep: 10 },
-    exercises: ['Jumping Jacks', 'High Knees', 'Sit-ups', 'Push-ups', 'Rowers', 'Bicycles', 'Mountain Climbers']
+    exercises: ['Jumping Jacks', 'High Knees', 'Sit-ups', 'Push-ups', 'Burpees', 'Rowers', 'Bicycles', 'Mountain Climbers']
   },
   {
     id: 'tabata',
