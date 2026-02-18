@@ -115,6 +115,9 @@ function getAudioCtx() {
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
   return audioCtx;
 }
 
@@ -128,7 +131,7 @@ function playBeep(frequency, duration, count) {
     gain.connect(ctx.destination);
     osc.frequency.value = frequency;
     osc.type = 'sine';
-    gain.gain.setValueAtTime(0.3, ctx.currentTime + delay);
+    gain.gain.setValueAtTime(0.6, ctx.currentTime + delay);
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + delay + duration);
     osc.start(ctx.currentTime + delay);
     osc.stop(ctx.currentTime + delay + duration);
@@ -140,6 +143,16 @@ function beepCountdown() { playBeep(880, 0.15, 1); }
 function beepWork() { playBeep(1200, 0.2, 2); }
 function beepRest() { playBeep(600, 0.3, 1); }
 function beepComplete() { playBeep(1000, 0.15, 3); }
+
+// ===== SPEECH =====
+function speak(text) {
+  if (!('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.rate = 1.1;
+  utter.volume = 1;
+  speechSynthesis.speak(utter);
+}
 
 // ===== SCREEN NAVIGATION =====
 function showScreen(name) {
@@ -276,6 +289,9 @@ function startWorkout() {
   showScreen('timer');
   updateTimerDisplay();
   requestWakeLock();
+  if (config.exercises) {
+    speak('Get ready. ' + config.exercises[0]);
+  }
   timerState.intervalId = setInterval(timerTick, 1000);
 }
 
@@ -304,6 +320,11 @@ function advancePhase() {
     timerState.timeLeft = config.work;
     timerState.totalPhaseTime = config.work;
     beepWork();
+    if (config.exercises) {
+      speak(config.exercises[0]);
+    } else {
+      speak('Go!');
+    }
   } else if (phase === 'work') {
     if (round >= config.rounds) {
       finishWorkout();
@@ -314,12 +335,24 @@ function advancePhase() {
       timerState.timeLeft = config.rest;
       timerState.totalPhaseTime = config.rest;
       beepRest();
+      if (config.exercises) {
+        const nextExIdx = round % config.exercises.length;
+        speak('Rest. Next, ' + config.exercises[nextExIdx]);
+      } else {
+        speak('Rest');
+      }
     } else {
       timerState.round++;
       timerState.phase = 'work';
       timerState.timeLeft = config.work;
       timerState.totalPhaseTime = config.work;
       beepWork();
+      if (config.exercises) {
+        const exIdx = (timerState.round - 1) % config.exercises.length;
+        speak(config.exercises[exIdx]);
+      } else {
+        speak('Go!');
+      }
     }
   } else if (phase === 'rest') {
     timerState.round++;
@@ -327,6 +360,12 @@ function advancePhase() {
     timerState.timeLeft = config.work;
     timerState.totalPhaseTime = config.work;
     beepWork();
+    if (config.exercises) {
+      const exIdx = (timerState.round - 1) % config.exercises.length;
+      speak(config.exercises[exIdx]);
+    } else {
+      speak('Go!');
+    }
   }
 }
 
@@ -441,6 +480,7 @@ function finishWorkout() {
   timerState.running = false;
   if (timerState.intervalId) clearInterval(timerState.intervalId);
   beepComplete();
+  speak('Workout complete!');
   releaseWakeLock();
 
   const elapsed = Math.round((Date.now() - timerState.startTime) / 1000);
