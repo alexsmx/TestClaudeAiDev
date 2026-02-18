@@ -501,3 +501,8 @@ document.querySelectorAll('.timer-btn').forEach(btn => {
 
 // ===== INIT =====
 renderWorkoutGrid();
+
+// ===== SERVICE WORKER =====
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js');
+}
