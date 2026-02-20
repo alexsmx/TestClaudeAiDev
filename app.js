@@ -300,9 +300,11 @@ function timerTick() {
 
   timerState.timeLeft--;
 
-  // Countdown beeps at 3, 2, 1
+  // Countdown beeps at 3, 2, 1 (only when speech isn't playing)
   if (timerState.timeLeft <= 3 && timerState.timeLeft > 0) {
-    beepCountdown();
+    if (!window.speechSynthesis || !speechSynthesis.speaking) {
+      beepCountdown();
+    }
   }
 
   if (timerState.timeLeft <= 0) {
@@ -319,7 +321,6 @@ function advancePhase() {
     timerState.phase = 'work';
     timerState.timeLeft = config.work;
     timerState.totalPhaseTime = config.work;
-    beepWork();
     if (config.exercises) {
       speak(config.exercises[0]);
     } else {
@@ -334,7 +335,6 @@ function advancePhase() {
       timerState.phase = 'rest';
       timerState.timeLeft = config.rest;
       timerState.totalPhaseTime = config.rest;
-      beepRest();
       if (config.exercises) {
         const nextExIdx = round % config.exercises.length;
         speak('Rest. Next, ' + config.exercises[nextExIdx]);
@@ -346,7 +346,6 @@ function advancePhase() {
       timerState.phase = 'work';
       timerState.timeLeft = config.work;
       timerState.totalPhaseTime = config.work;
-      beepWork();
       if (config.exercises) {
         const exIdx = (timerState.round - 1) % config.exercises.length;
         speak(config.exercises[exIdx]);
@@ -359,7 +358,6 @@ function advancePhase() {
     timerState.phase = 'work';
     timerState.timeLeft = config.work;
     timerState.totalPhaseTime = config.work;
-    beepWork();
     if (config.exercises) {
       const exIdx = (timerState.round - 1) % config.exercises.length;
       speak(config.exercises[exIdx]);
@@ -479,7 +477,6 @@ function stopWorkout() {
 function finishWorkout() {
   timerState.running = false;
   if (timerState.intervalId) clearInterval(timerState.intervalId);
-  beepComplete();
   speak('Workout complete!');
   releaseWakeLock();
 
