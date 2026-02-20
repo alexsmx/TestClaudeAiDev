@@ -145,12 +145,16 @@ function beepRest() { playBeep(600, 0.3, 1); }
 function beepComplete() { playBeep(1000, 0.15, 3); }
 
 // ===== SPEECH =====
-function speak(text) {
-  if (!('speechSynthesis' in window)) return;
+function speak(text, onDone) {
+  if (!('speechSynthesis' in window)) {
+    if (onDone) onDone();
+    return;
+  }
   speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(text);
   utter.rate = 1.1;
   utter.volume = 1;
+  if (onDone) utter.onend = onDone;
   speechSynthesis.speak(utter);
 }
 
@@ -322,9 +326,9 @@ function advancePhase() {
     timerState.timeLeft = config.work;
     timerState.totalPhaseTime = config.work;
     if (config.exercises) {
-      speak(config.exercises[0]);
+      speak(config.exercises[0], beepWork);
     } else {
-      speak('Go!');
+      speak('Go!', beepWork);
     }
   } else if (phase === 'work') {
     if (round >= config.rounds) {
@@ -337,9 +341,9 @@ function advancePhase() {
       timerState.totalPhaseTime = config.rest;
       if (config.exercises) {
         const nextExIdx = round % config.exercises.length;
-        speak('Rest. Next, ' + config.exercises[nextExIdx]);
+        speak('Rest. Next, ' + config.exercises[nextExIdx], beepRest);
       } else {
-        speak('Rest');
+        speak('Rest', beepRest);
       }
     } else {
       timerState.round++;
@@ -348,9 +352,9 @@ function advancePhase() {
       timerState.totalPhaseTime = config.work;
       if (config.exercises) {
         const exIdx = (timerState.round - 1) % config.exercises.length;
-        speak(config.exercises[exIdx]);
+        speak(config.exercises[exIdx], beepWork);
       } else {
-        speak('Go!');
+        speak('Go!', beepWork);
       }
     }
   } else if (phase === 'rest') {
@@ -360,9 +364,9 @@ function advancePhase() {
     timerState.totalPhaseTime = config.work;
     if (config.exercises) {
       const exIdx = (timerState.round - 1) % config.exercises.length;
-      speak(config.exercises[exIdx]);
+      speak(config.exercises[exIdx], beepWork);
     } else {
-      speak('Go!');
+      speak('Go!', beepWork);
     }
   }
 }
@@ -477,7 +481,7 @@ function stopWorkout() {
 function finishWorkout() {
   timerState.running = false;
   if (timerState.intervalId) clearInterval(timerState.intervalId);
-  speak('Workout complete!');
+  speak('Workout complete!', beepComplete);
   releaseWakeLock();
 
   const elapsed = Math.round((Date.now() - timerState.startTime) / 1000);

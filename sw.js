@@ -1,4 +1,4 @@
-const CACHE_NAME = 'interval-timer-v3';
+const CACHE_NAME = 'interval-timer-v4';
 const ASSETS = [
   './',
   './index.html',
@@ -26,9 +26,15 @@ self.addEventListener('activate', (e) => {
   self.clients.claim();
 });
 
-// Serve from cache, fall back to network
+// Network first, fall back to cache (ensures updates are picked up immediately)
 self.addEventListener('fetch', (e) => {
   e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
+    fetch(e.request)
+      .then(response => {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+        return response;
+      })
+      .catch(() => caches.match(e.request))
   );
 });
