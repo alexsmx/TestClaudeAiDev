@@ -360,6 +360,24 @@ header h2 {
 .exercise-name.phase-rest { color: var(--green); }
 .exercise-name.phase-prep { color: var(--yellow); }
 
+/* ===== HR TARGET BADGE ===== */
+.hr-target {
+  display: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  background: rgba(233, 69, 96, 0.15);
+  border: 1px solid rgba(233, 69, 96, 0.3);
+  border-radius: 20px;
+  padding: 4px 14px;
+  text-align: center;
+  letter-spacing: 0.3px;
+}
+
+.hr-target.visible {
+  display: block;
+}
+
 /* ===== EXERCISE LIST (Config) ===== */
 .exercise-list {
   background: var(--surface);
@@ -404,6 +422,18 @@ header h2 {
   font-weight: 700;
   color: var(--text-dim);
   flex-shrink: 0;
+}
+
+.exercise-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.exercise-hr {
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 600;
 }
 
 /* ===== TIMER CONTROLS ===== */
