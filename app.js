@@ -50,6 +50,40 @@ const WORKOUTS = [
     defaults: { work: 40, rest: 20, rounds: 10, prep: 10 }
   },
   {
+    id: 'bike-baseline',
+    name: 'Bike Baseline',
+    icon: '\u{1F6B4}',
+    desc: '70.3 baseline builder: sub-maximal assessment ride',
+    color: 'green',
+    defaults: { work: 300, rest: 10, sets: 1, prep: 10 },
+    exercises: [
+      'Easy Spin - High Cadence 85-90 RPM',
+      'Easy Spin - Stay Conversational',
+      'Spin-Ups: 3x30s Fast Pedaling, 60s Recovery',
+      'Step 1: Comfortable (RPE 3-4)',
+      'Step 2: Moderate (RPE 5-6)',
+      'Step 3: Hard - Half Ironman Pace (RPE 7)',
+      'Step 4: Very Hard - Hold It! (RPE 8)',
+      'Cool Down - Easy Spin',
+      'Cool Down - Stretch Hip Flexors & Hamstrings'
+    ],
+    coaching: {
+      maxHR: 168, // 220 - age 52
+      age: 52,
+      zones: [
+        { hr: '84\u2013118 bpm (Z1-2)', cues: ['Keep it easy. Cadence 85 to 90 RPM.', 'Relax your shoulders, loosen your grip.', 'Breathe through your nose if you can.', 'Spin smooth, no mashing the pedals.'] },
+        { hr: '84\u2013118 bpm (Z1-2)', cues: ['Stay conversational. If you can\u2019t talk, slow down.', 'Check your posture, flat back, relaxed neck.', 'Nose breathing. Build that aerobic engine.', 'One minute left in warm-up. Stay easy.'] },
+        { hr: '84\u2013118 bpm (Z1-2)', cues: ['Time for spin-ups. Pedal fast but not hard for 30 seconds.', 'Recovery spin. Keep the legs turning easy.', 'Second spin-up. Quick feet, light pressure.', 'Last spin-up coming. Stay relaxed.'] },
+        { hr: '101\u2013118 bpm (Z2)', cues: ['Step 1. Comfortable effort. You should speak in full sentences.', 'Heart rate target: 101 to 118. Check in.', 'This is your endurance base. Don\u2019t push yet.', 'One minute left at RPE 3 to 4.'] },
+        { hr: '118\u2013134 bpm (Z3)', cues: ['Step 2. Moderate effort. Breathing should be deeper now.', 'Heart rate target: 118 to 134. Short phrases only.', 'You\u2019re finding your rhythm. Hold steady.', 'One minute left at RPE 5 to 6.'] },
+        { hr: '134\u2013145 bpm (Z3-4)', cues: ['Step 3. This is your Half Ironman goal pace.', 'Heart rate target: 134 to 145. Deep controlled breathing.', 'Can you hold this for 56 miles? That\u2019s the question.', 'One minute left. Note how this feels.'] },
+        { hr: '145\u2013151 bpm (Z4)', cues: ['Step 4. Very hard. Focus entirely on your breath.', 'Heart rate target: 145 to 151. Can you hold this?', 'If you\u2019re red-lining, that\u2019s good data. Your base needs work.', 'One minute left. Almost there. Hold on!'] },
+        { hr: '84\u2013101 bpm (Z1)', cues: ['Cool down. Drop the resistance. Easy spin.', 'Let your heart rate come back down.', 'Great work on the assessment. Breathe easy.', 'Keep spinning. Don\u2019t stop suddenly.'] },
+        { hr: '84\u2013101 bpm (Z1)', cues: ['Keep the easy spin going.', 'Almost done. Think about what Step 3 and 4 told you.', 'Prepare to stretch hip flexors and hamstrings when you get off.', 'Remember: time on saddle beats chasing miles. Well done!'] }
+      ]
+    }
+  },
+  {
     id: 'custom',
     name: 'Custom',
     icon: '\u2699',
@@ -92,6 +126,7 @@ const fieldSets = $('#field-sets');
 const fieldRounds = $('#field-rounds');
 const exerciseListEl = $('#exercise-list');
 const exerciseNameEl = $('#exercise-name');
+const hrTargetEl = $('#hr-target');
 
 // ===== STATE =====
 let currentWorkout = null;
@@ -198,7 +233,7 @@ function openConfig(workout) {
     fieldSets.style.display = '';
     cfgSets.value = workout.defaults.sets || 2;
     cfgRounds.value = workout.exercises.length * (parseInt(cfgSets.value) || 2);
-    renderExerciseList(workout.exercises);
+    renderExerciseList(workout.exercises, workout.coaching);
     exerciseListEl.style.display = '';
   } else {
     fieldRounds.style.display = '';
@@ -212,11 +247,12 @@ function openConfig(workout) {
   showScreen('config');
 }
 
-function renderExerciseList(exercises) {
+function renderExerciseList(exercises, coaching) {
   exerciseListEl.innerHTML = '<div class="exercise-list-title">Exercises</div>' +
-    exercises.map((ex, i) =>
-      `<div class="exercise-list-item"><span class="exercise-num">${i + 1}</span>${ex}</div>`
-    ).join('');
+    exercises.map((ex, i) => {
+      const hr = coaching && coaching.zones[i] ? `<span class="exercise-hr">${coaching.zones[i].hr}</span>` : '';
+      return `<div class="exercise-list-item"><span class="exercise-num">${i + 1}</span><span class="exercise-info"><span>${ex}</span>${hr}</span></div>`;
+    }).join('');
 }
 
 function updateConfigSummary() {
@@ -275,7 +311,8 @@ function startWorkout() {
     rounds: rounds,
     prep: parseInt(cfgPrep.value) || 10,
     exercises: exercises,
-    sets: sets
+    sets: sets,
+    coaching: currentWorkout?.coaching || null
   };
 
   timerState = {
@@ -303,6 +340,24 @@ function timerTick() {
   if (timerState.paused || !timerState.running) return;
 
   timerState.timeLeft--;
+
+  // Coaching voice cues for long intervals (e.g., bike baseline)
+  if (timerState.phase === 'work' && timerState.config.coaching) {
+    const coaching = timerState.config.coaching;
+    const exIdx = (timerState.round - 1) % timerState.config.exercises.length;
+    const zone = coaching.zones[exIdx];
+    if (zone && zone.cues) {
+      const elapsed = timerState.totalPhaseTime - timerState.timeLeft;
+      const cueInterval = Math.floor(timerState.totalPhaseTime / (zone.cues.length + 1));
+      for (let i = 0; i < zone.cues.length; i++) {
+        const cueTime = cueInterval * (i + 1);
+        if (elapsed === cueTime) {
+          speak(zone.cues[i]);
+          break;
+        }
+      }
+    }
+  }
 
   // Countdown beeps at 3, 2, 1 (only when speech isn't playing)
   if (timerState.timeLeft <= 3 && timerState.timeLeft > 0) {
@@ -379,8 +434,14 @@ function updateTimerDisplay() {
   phaseLabel.textContent = labels[phase];
   phaseLabel.className = 'phase-label phase-' + phase;
 
-  // Countdown number
-  countdownTime.textContent = timeLeft;
+  // Countdown number (mm:ss for long intervals)
+  if (totalPhaseTime >= 60) {
+    const mins = Math.floor(timeLeft / 60);
+    const secs = timeLeft % 60;
+    countdownTime.textContent = mins + ':' + secs.toString().padStart(2, '0');
+  } else {
+    countdownTime.textContent = timeLeft;
+  }
 
   // Ring progress
   const fraction = 1 - (timeLeft / totalPhaseTime);
@@ -405,6 +466,14 @@ function updateTimerDisplay() {
     exerciseNameEl.className = 'exercise-name phase-' + phase;
     exerciseNameEl.style.display = '';
 
+    // HR target badge
+    if (config.coaching && config.coaching.zones[exIdx]) {
+      hrTargetEl.textContent = '\u2764\uFE0F ' + config.coaching.zones[exIdx].hr;
+      hrTargetEl.classList.add('visible');
+    } else {
+      hrTargetEl.classList.remove('visible');
+    }
+
     // Round indicator
     roundIndicator.textContent = `Set ${setNum}/${config.sets} \u2022 Ex ${exIdx + 1}/${config.exercises.length}`;
 
@@ -422,6 +491,7 @@ function updateTimerDisplay() {
     }
   } else {
     exerciseNameEl.style.display = 'none';
+    hrTargetEl.classList.remove('visible');
 
     // Round indicator
     roundIndicator.textContent = `Round ${round}/${config.rounds}`;
