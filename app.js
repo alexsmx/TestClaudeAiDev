@@ -50,6 +50,25 @@ const WORKOUTS = [
     defaults: { work: 40, rest: 20, rounds: 10, prep: 10 }
   },
   {
+    id: 'bike-baseline',
+    name: 'Bike Baseline',
+    icon: '\u{1F6B4}',
+    desc: '70.3 baseline builder: sub-maximal assessment ride',
+    color: 'green',
+    defaults: { work: 300, rest: 10, sets: 1, prep: 10 },
+    exercises: [
+      'Easy Spin - High Cadence 85-90 RPM',
+      'Easy Spin - Stay Conversational',
+      'Spin-Ups: 3x30s Fast Pedaling, 60s Recovery',
+      'Step 1: Comfortable (RPE 3-4)',
+      'Step 2: Moderate (RPE 5-6)',
+      'Step 3: Hard - Half Ironman Pace (RPE 7)',
+      'Step 4: Very Hard - Hold It! (RPE 8)',
+      'Cool Down - Easy Spin',
+      'Cool Down - Stretch Hip Flexors & Hamstrings'
+    ]
+  },
+  {
     id: 'custom',
     name: 'Custom',
     icon: '\u2699',
