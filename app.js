@@ -111,9 +111,9 @@ const WORKOUTS = [
         { hr: '101\u2013134 bpm (Z2-3)', cues: ['Hands under shoulders. Full range of motion.', 'Drop to your knees if form breaks down.'] },
         { hr: '101\u2013118 bpm (Z2)', cues: ['Squeeze your glutes at the top. Pause for a beat.', 'Feet flat, drive through your heels.'] },
         { hr: '101\u2013118 bpm (Z2)', cues: ['Straight line from head to heels.', 'Breathe! Don\u2019t hold your breath.'] },
-        { hr: '118\u2013134 bpm (Z3)', cues: ['Big step forward. Back knee nearly touches the floor.', 'This builds the single-leg strength you need for running.'] },
+        { hr: '118\u2013134 bpm (Z3)', cues: ['Big step forward. Back knee nearly touches the floor.', 'If you feel wobbly, slow down. Balance beats speed.', 'This builds the single-leg strength you need for running.'] },
         { hr: '84\u2013118 bpm (Z1-2)', cues: ['Lift arms and legs together. Squeeze your lower back.', 'This protects your back on the bike. Hold strong.'] },
-        { hr: '134\u2013145 bpm (Z3-4)', cues: ['Drive those knees! Keep your hips level.', 'Almost done. Push through it.'] },
+        { hr: '118\u2013145 bpm (Z3-4)', cues: ['Drive those knees! Keep your hips level.', 'Too intense? Step your feet out instead of jumping.', 'Almost done. Push through it!'] },
         { hr: '101\u2013118 bpm (Z2)', cues: ['Stack your shoulder over your elbow.', 'Hips up. Engage your obliques.'] },
         { hr: '101\u2013118 bpm (Z2)', cues: ['Same thing, other side. Stay tight.', 'Balance both sides. Core is your foundation.'] }
       ]
