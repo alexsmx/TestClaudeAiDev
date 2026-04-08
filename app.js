@@ -84,6 +84,38 @@ const WORKOUTS = [
     }
   },
   {
+    id: 'norwegian-4x4',
+    name: 'Norwegian 4x4',
+    icon: '\u{1F6B4}',
+    desc: 'Scandinavian VO2max intervals: 4x4min at 85-95% HR',
+    color: 'red',
+    defaults: { work: 240, rest: 180, sets: 1, prep: 10 },
+    exercises: [
+      'Warm-Up: Easy Spin',
+      'Warm-Up: Build to Moderate',
+      'Interval 1: Hard Effort (RPE 8-9)',
+      'Interval 2: Hard Effort (RPE 8-9)',
+      'Interval 3: Hard Effort (RPE 8-9)',
+      'Interval 4: Hard Effort (RPE 8-9)',
+      'Cool Down: Easy Spin',
+      'Cool Down: Recovery & Stretch'
+    ],
+    coaching: {
+      maxHR: 168, // 220 - age 52
+      age: 52,
+      zones: [
+        { hr: '84\u2013118 bpm (Z1-2)', cues: ['Easy spinning. Let the legs wake up.', 'High cadence, low resistance. Breathe through your nose.', 'Relax your shoulders, loosen your grip.', 'Warming up your aerobic engine.'] },
+        { hr: '101\u2013134 bpm (Z2-3)', cues: ['Start building. Increase resistance slightly.', 'Breathing should be getting deeper now.', 'Include a couple of 15-second pickups to prime the legs.', 'Get ready. First interval starts next.'] },
+        { hr: '143\u2013160 bpm (Z4-5)', cues: ['Interval 1. Push to 85 to 95 percent max heart rate.', 'Target 143 to 160 beats per minute. This should feel hard.', 'Not a sprint! Sustainable hard. You need to last 4 minutes.', 'One minute left. Hold the effort. Don\u2019t fade!'] },
+        { hr: '143\u2013160 bpm (Z4-5)', cues: ['Interval 2. Same target. 143 to 160 beats per minute.', 'Find your rhythm. Deep, powerful breaths.', 'This is where VO2 max improves. Embrace the discomfort.', 'One minute left. Stay strong. Halfway through the set!'] },
+        { hr: '143\u2013160 bpm (Z4-5)', cues: ['Interval 3. You know the drill. Push hard.', 'Heart rate target: 143 to 160. Check in.', 'Your body is adapting right now. This is the work that counts.', 'One minute left. Dig deep. One more interval after this!'] },
+        { hr: '143\u2013160 bpm (Z4-5)', cues: ['Last interval! Give it everything you\u2019ve got.', 'Target 143 to 160. Leave nothing in the tank.', 'This is the one that builds champions. Hold the pace!', 'Final minute! Push through. Almost done!'] },
+        { hr: '84\u2013101 bpm (Z1)', cues: ['Drop all resistance. Easy spin.', 'Let your heart rate come back down.', 'Great effort. Breathe easy now.', 'Keep the legs turning. Don\u2019t stop suddenly.'] },
+        { hr: '84\u2013101 bpm (Z1)', cues: ['Continue easy spinning.', 'Think about how the intervals felt. Did you hold 143 to 160?', 'Stretch hip flexors and quads when you get off.', 'Norwegian 4 by 4 complete. Once or twice a week is enough!'] }
+      ]
+    }
+  },
+  {
     id: 'living-room',
     name: 'Living Room',
     icon: '\u{1F3E0}',
