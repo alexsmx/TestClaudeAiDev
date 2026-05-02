@@ -195,6 +195,7 @@ const fieldRounds = $('#field-rounds');
 const exerciseListEl = $('#exercise-list');
 const exerciseNameEl = $('#exercise-name');
 const hrTargetEl = $('#hr-target');
+const cfgCoaching = $('#cfg-coaching');
 
 // ===== STATE =====
 let currentWorkout = null;
@@ -365,6 +366,28 @@ document.addEventListener('click', (e) => {
   input.addEventListener('change', updateConfigSummary);
 });
 
+// ===== MOTIVATION MESSAGES =====
+const MOTIVATION = {
+  work: [
+    'You’ve got this!',
+    'Keep pushing!',
+    'Strong effort!',
+    'Don’t give up!',
+    'Stay focused!',
+    'Power through!',
+    'You’re doing great!',
+    'Feel the burn!',
+    'Keep it up!',
+    'Almost there!'
+  ],
+  milestones: {
+    quarter: 'Quarter of the way! Keep it going!',
+    halfway: 'Halfway done! You’re crushing it!',
+    threeQuarter: 'Three quarters done! Almost there!',
+    lastRound: 'Last round! Give it everything!'
+  }
+};
+
 // ===== TIMER ENGINE =====
 const RING_CIRCUMFERENCE = 2 * Math.PI * 90; // r=90
 
@@ -380,7 +403,8 @@ function startWorkout() {
     prep: parseInt(cfgPrep.value) || 10,
     exercises: exercises,
     sets: sets,
-    coaching: currentWorkout?.coaching || null
+    coaching: currentWorkout?.coaching || null,
+    voiceCoaching: cfgCoaching.checked
   };
 
   timerState = {
@@ -398,7 +422,7 @@ function startWorkout() {
   showScreen('timer');
   updateTimerDisplay();
   requestWakeLock();
-  if (config.exercises) {
+  if (config.voiceCoaching && config.exercises) {
     speak('Get ready. ' + config.exercises[0]);
   }
   timerState.intervalId = setInterval(timerTick, 1000);
@@ -409,20 +433,35 @@ function timerTick() {
 
   timerState.timeLeft--;
 
-  // Coaching voice cues for long intervals (e.g., bike baseline)
-  if (timerState.phase === 'work' && timerState.config.coaching) {
-    const coaching = timerState.config.coaching;
-    const exIdx = (timerState.round - 1) % timerState.config.exercises.length;
-    const zone = coaching.zones[exIdx];
-    if (zone && zone.cues) {
-      const elapsed = timerState.totalPhaseTime - timerState.timeLeft;
-      const cueInterval = Math.floor(timerState.totalPhaseTime / (zone.cues.length + 1));
-      for (let i = 0; i < zone.cues.length; i++) {
-        const cueTime = cueInterval * (i + 1);
-        if (elapsed === cueTime) {
-          speak(zone.cues[i]);
-          break;
+  // Voice coaching and motivation
+  if (timerState.phase === 'work' && timerState.config.voiceCoaching) {
+    const { config, round, totalPhaseTime, timeLeft } = timerState;
+    const elapsed = totalPhaseTime - timeLeft;
+
+    if (config.coaching) {
+      const exIdx = (round - 1) % config.exercises.length;
+      const zone = config.coaching.zones[exIdx];
+      if (zone && zone.cues) {
+        const cueInterval = Math.floor(totalPhaseTime / (zone.cues.length + 1));
+        for (let i = 0; i < zone.cues.length; i++) {
+          if (elapsed === cueInterval * (i + 1)) {
+            speak(zone.cues[i]);
+            break;
+          }
         }
+      }
+    } else {
+      const midpoint = Math.floor(totalPhaseTime / 2);
+      if (elapsed === midpoint && totalPhaseTime >= 20) {
+        const rounds = config.rounds;
+        const progress = round / rounds;
+        let msg;
+        if (round === rounds) msg = MOTIVATION.milestones.lastRound;
+        else if (progress >= 0.75 && round === Math.ceil(rounds * 0.75)) msg = MOTIVATION.milestones.threeQuarter;
+        else if (progress >= 0.5 && round === Math.ceil(rounds * 0.5)) msg = MOTIVATION.milestones.halfway;
+        else if (progress >= 0.25 && round === Math.ceil(rounds * 0.25)) msg = MOTIVATION.milestones.quarter;
+        else msg = MOTIVATION.work[round % MOTIVATION.work.length];
+        speak(msg);
       }
     }
   }
@@ -443,15 +482,18 @@ function timerTick() {
 
 function advancePhase() {
   const { phase, round, config } = timerState;
+  const voice = config.voiceCoaching;
 
   if (phase === 'prep') {
     timerState.phase = 'work';
     timerState.timeLeft = config.work;
     timerState.totalPhaseTime = config.work;
-    if (config.exercises) {
+    if (voice && config.exercises) {
       speak(config.exercises[0], beepWork);
-    } else {
+    } else if (voice) {
       speak('Go!', beepWork);
+    } else {
+      beepWork();
     }
   } else if (phase === 'work') {
     if (round >= config.rounds) {
@@ -462,22 +504,26 @@ function advancePhase() {
       timerState.phase = 'rest';
       timerState.timeLeft = config.rest;
       timerState.totalPhaseTime = config.rest;
-      if (config.exercises) {
+      if (voice && config.exercises) {
         const nextExIdx = round % config.exercises.length;
         speak('Rest. Next, ' + config.exercises[nextExIdx], beepRest);
-      } else {
+      } else if (voice) {
         speak('Rest', beepRest);
+      } else {
+        beepRest();
       }
     } else {
       timerState.round++;
       timerState.phase = 'work';
       timerState.timeLeft = config.work;
       timerState.totalPhaseTime = config.work;
-      if (config.exercises) {
+      if (voice && config.exercises) {
         const exIdx = (timerState.round - 1) % config.exercises.length;
         speak(config.exercises[exIdx], beepWork);
-      } else {
+      } else if (voice) {
         speak('Go!', beepWork);
+      } else {
+        beepWork();
       }
     }
   } else if (phase === 'rest') {
@@ -485,11 +531,13 @@ function advancePhase() {
     timerState.phase = 'work';
     timerState.timeLeft = config.work;
     timerState.totalPhaseTime = config.work;
-    if (config.exercises) {
+    if (voice && config.exercises) {
       const exIdx = (timerState.round - 1) % config.exercises.length;
       speak(config.exercises[exIdx], beepWork);
-    } else {
+    } else if (voice) {
       speak('Go!', beepWork);
+    } else {
+      beepWork();
     }
   }
 }
@@ -619,7 +667,11 @@ function stopWorkout() {
 function finishWorkout() {
   timerState.running = false;
   if (timerState.intervalId) clearInterval(timerState.intervalId);
-  speak('Workout complete!', beepComplete);
+  if (timerState.config.voiceCoaching) {
+    speak('Workout complete!', beepComplete);
+  } else {
+    beepComplete();
+  }
   releaseWakeLock();
 
   const elapsed = Math.round((Date.now() - timerState.startTime) / 1000);

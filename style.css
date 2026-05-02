@@ -228,6 +228,65 @@ header h2 {
   flex-shrink: 0;
 }
 
+/* ===== TOGGLE SWITCH ===== */
+.toggle-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  flex-shrink: 0;
+}
+
+.toggle-field label {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.toggle-switch {
+  position: relative;
+  width: 48px;
+  height: 28px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: var(--surface-2);
+  border-radius: 28px;
+  transition: background 0.2s;
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  left: 3px;
+  bottom: 3px;
+  background: var(--text);
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background: var(--green);
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(20px);
+}
+
 /* ===== BUTTONS ===== */
 .btn-start {
   background: var(--accent);
