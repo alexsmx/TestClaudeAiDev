@@ -249,6 +249,16 @@ function beepRest() { playBeep(600, 0.3, 1); }
 function beepComplete() { playBeep(1000, 0.15, 3); }
 
 // ===== SPEECH =====
+let speechUnlocked = false;
+
+function unlockSpeech() {
+  if (speechUnlocked || !('speechSynthesis' in window)) return;
+  const utter = new SpeechSynthesisUtterance('');
+  utter.volume = 0;
+  speechSynthesis.speak(utter);
+  speechUnlocked = true;
+}
+
 function speak(text, onDone) {
   if (!('speechSynthesis' in window)) {
     if (onDone) onDone();
@@ -259,7 +269,16 @@ function speak(text, onDone) {
   utter.rate = 1.1;
   utter.volume = 1;
   if (onDone) utter.onend = onDone;
+  utter.onerror = () => { if (onDone) onDone(); };
   speechSynthesis.speak(utter);
+  // Chrome bug workaround: speech can pause after ~15s
+  const watchdog = setInterval(() => {
+    if (!speechSynthesis.speaking) { clearInterval(watchdog); return; }
+    speechSynthesis.pause();
+    speechSynthesis.resume();
+  }, 5000);
+  utter.onend = () => { clearInterval(watchdog); if (onDone) onDone(); };
+  utter.onerror = () => { clearInterval(watchdog); if (onDone) onDone(); };
 }
 
 // ===== SCREEN NAVIGATION =====
@@ -282,8 +301,8 @@ function renderWorkoutGrid() {
   grid.addEventListener('click', (e) => {
     const card = e.target.closest('.workout-card');
     if (!card) return;
-    // Ensure audio context is created on user gesture
     getAudioCtx();
+    unlockSpeech();
     const workout = WORKOUTS.find(w => w.id === card.dataset.id);
     if (workout) openConfig(workout);
   });
@@ -712,7 +731,10 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // ===== EVENT LISTENERS =====
-$('#btn-start').addEventListener('click', startWorkout);
+$('#btn-start').addEventListener('click', () => {
+  unlockSpeech();
+  startWorkout();
+});
 $('#btn-back-config').addEventListener('click', () => showScreen('select'));
 $('#btn-back-timer').addEventListener('click', stopWorkout);
 $('#btn-pause').addEventListener('click', togglePause);
