@@ -64,6 +64,14 @@
             <button class="stepper-btn" data-target="cfg-sets" data-delta="1">+</button>
           </div>
         </div>
+        <div class="config-field" id="field-tick" style="display:none">
+          <label for="cfg-tick">Tick Every (seconds)</label>
+          <div class="stepper">
+            <button class="stepper-btn" data-target="cfg-tick" data-delta="-1">&minus;</button>
+            <input type="number" id="cfg-tick" min="1" max="60" value="10">
+            <button class="stepper-btn" data-target="cfg-tick" data-delta="1">+</button>
+          </div>
+        </div>
         <div class="config-field">
           <label for="cfg-prep">Get Ready (seconds)</label>
           <div class="stepper">

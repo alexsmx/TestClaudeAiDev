@@ -152,6 +152,14 @@ const WORKOUTS = [
     }
   },
   {
+    id: 'metronome',
+    name: 'Metronome',
+    icon: '\u{1F3B5}',
+    desc: 'Steady tick every X seconds \u2014 you count, it keeps time',
+    color: 'blue',
+    defaults: { work: 60, rest: 10, rounds: 8, prep: 5, tick: 10 }
+  },
+  {
     id: 'custom',
     name: 'Custom',
     icon: '\u2699',
@@ -196,6 +204,8 @@ const exerciseListEl = $('#exercise-list');
 const exerciseNameEl = $('#exercise-name');
 const hrTargetEl = $('#hr-target');
 const cfgCoaching = $('#cfg-coaching');
+const cfgTick = $('#cfg-tick');
+const fieldTick = $('#field-tick');
 
 // ===== STATE =====
 let currentWorkout = null;
@@ -247,6 +257,20 @@ function beepCountdown() { playBeep(880, 0.15, 1); }
 function beepWork() { playBeep(1200, 0.2, 2); }
 function beepRest() { playBeep(600, 0.3, 1); }
 function beepComplete() { playBeep(1000, 0.15, 3); }
+
+function tickMetronome() {
+  const ctx = getAudioCtx();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.frequency.value = 1800;
+  osc.type = 'triangle';
+  gain.gain.setValueAtTime(0.8, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
+  osc.start(ctx.currentTime);
+  osc.stop(ctx.currentTime + 0.08);
+}
 
 // ===== SPEECH =====
 let speechUnlocked = false;
@@ -331,6 +355,15 @@ function openConfig(workout) {
     exerciseListEl.innerHTML = '';
   }
 
+  if (workout.defaults.tick) {
+    fieldTick.style.display = '';
+    cfgTick.value = workout.defaults.tick;
+    cfgCoaching.checked = false;
+  } else {
+    fieldTick.style.display = 'none';
+    cfgCoaching.checked = true;
+  }
+
   updateConfigSummary();
   showScreen('config');
 }
@@ -364,6 +397,9 @@ function updateConfigSummary() {
   if (currentWorkout && currentWorkout.exercises) {
     const sets = parseInt(cfgSets.value) || 1;
     configSummary.textContent = `Total: ${mins}m ${secs.toString().padStart(2, '0')}s \u2022 ${currentWorkout.exercises.length} exercises \u00D7 ${sets} set${sets > 1 ? 's' : ''}`;
+  } else if (currentWorkout && currentWorkout.defaults.tick) {
+    const tick = parseInt(cfgTick.value) || 10;
+    configSummary.textContent = `Total: ${mins}m ${secs.toString().padStart(2, '0')}s \u2022 ${rounds} rounds \u2022 tick every ${tick}s`;
   } else {
     configSummary.textContent = `Total time: ${mins}m ${secs.toString().padStart(2, '0')}s \u2022 ${rounds} rounds`;
   }
@@ -381,7 +417,7 @@ document.addEventListener('click', (e) => {
 });
 
 // Input change
-[cfgWork, cfgRest, cfgRounds, cfgPrep, cfgSets].forEach(input => {
+[cfgWork, cfgRest, cfgRounds, cfgPrep, cfgSets, cfgTick].forEach(input => {
   input.addEventListener('change', updateConfigSummary);
 });
 
@@ -423,7 +459,8 @@ function startWorkout() {
     exercises: exercises,
     sets: sets,
     coaching: currentWorkout?.coaching || null,
-    voiceCoaching: cfgCoaching.checked
+    voiceCoaching: cfgCoaching.checked,
+    tick: currentWorkout?.defaults?.tick ? (parseInt(cfgTick.value) || 10) : 0
   };
 
   timerState = {
@@ -482,6 +519,14 @@ function timerTick() {
         else msg = MOTIVATION.work[round % MOTIVATION.work.length];
         speak(msg);
       }
+    }
+  }
+
+  // Metronome tick
+  if (timerState.phase === 'work' && timerState.config.tick > 0) {
+    const elapsed = timerState.totalPhaseTime - timerState.timeLeft;
+    if (elapsed > 0 && elapsed % timerState.config.tick === 0) {
+      tickMetronome();
     }
   }
 
