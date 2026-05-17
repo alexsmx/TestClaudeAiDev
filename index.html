@@ -72,6 +72,24 @@
             <button class="stepper-btn" data-target="cfg-tick" data-delta="1">+</button>
           </div>
         </div>
+        <div class="config-field-group" id="field-rhythm" style="display:none">
+          <div class="config-field">
+            <label for="cfg-high-bps">High Rhythm (BPS)</label>
+            <div class="stepper">
+              <button class="stepper-btn" data-target="cfg-high-bps" data-delta="-0.5">&minus;</button>
+              <input type="number" id="cfg-high-bps" min="0.5" max="5" step="0.5" value="2.0">
+              <button class="stepper-btn" data-target="cfg-high-bps" data-delta="0.5">+</button>
+            </div>
+          </div>
+          <div class="config-field">
+            <label for="cfg-low-bps">Low Rhythm (BPS)</label>
+            <div class="stepper">
+              <button class="stepper-btn" data-target="cfg-low-bps" data-delta="-0.5">&minus;</button>
+              <input type="number" id="cfg-low-bps" min="0.5" max="5" step="0.5" value="1.0">
+              <button class="stepper-btn" data-target="cfg-low-bps" data-delta="0.5">+</button>
+            </div>
+          </div>
+        </div>
         <div class="config-field">
           <label for="cfg-prep">Get Ready (seconds)</label>
           <div class="stepper">
@@ -111,6 +129,11 @@
           <div class="countdown-time" id="countdown-time">10</div>
         </div>
         <div class="next-up" id="next-up">Next: Work</div>
+      </div>
+      <div class="bps-adjuster" id="bps-adjuster">
+        <button class="bps-btn" id="bps-down">&minus;</button>
+        <div class="bps-display" id="bps-display"><span id="bps-value">2.0</span> BPS</div>
+        <button class="bps-btn" id="bps-up">+</button>
       </div>
       <div class="timer-controls">
         <button class="timer-btn" id="btn-pause" aria-label="Pause">

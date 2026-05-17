@@ -160,6 +160,14 @@ const WORKOUTS = [
     defaults: { work: 60, rest: 10, rounds: 8, prep: 5, tick: 10 }
   },
   {
+    id: 'rhythm',
+    name: 'Rhythm',
+    icon: '\u{1F941}',
+    desc: 'Cadence trainer: alternating high/low rhythm for bike & run',
+    color: 'yellow',
+    defaults: { work: 180, rest: 60, rounds: 8, prep: 5, rhythm: { highBps: 2.0, lowBps: 1.0 } }
+  },
+  {
     id: 'custom',
     name: 'Custom',
     icon: '\u2699',
@@ -206,6 +214,12 @@ const hrTargetEl = $('#hr-target');
 const cfgCoaching = $('#cfg-coaching');
 const cfgTick = $('#cfg-tick');
 const fieldTick = $('#field-tick');
+const cfgHighBps = $('#cfg-high-bps');
+const cfgLowBps = $('#cfg-low-bps');
+const fieldRhythm = $('#field-rhythm');
+const bpsDisplay = $('#bps-display');
+const bpsValue = $('#bps-value');
+const bpsAdjuster = $('#bps-adjuster');
 
 // ===== STATE =====
 let currentWorkout = null;
@@ -270,6 +284,63 @@ function tickMetronome() {
   gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
   osc.start(ctx.currentTime);
   osc.stop(ctx.currentTime + 0.08);
+}
+
+// ===== RHYTHM METRONOME =====
+let rhythmIntervalId = null;
+
+function startRhythm(bps) {
+  stopRhythm();
+  if (bps <= 0) return;
+  const ms = Math.round(1000 / bps);
+  tickMetronome();
+  rhythmIntervalId = setInterval(tickMetronome, ms);
+}
+
+function stopRhythm() {
+  if (rhythmIntervalId) {
+    clearInterval(rhythmIntervalId);
+    rhythmIntervalId = null;
+  }
+}
+
+function logBps(newBps, phase) {
+  const now = Date.now();
+  const log = timerState.bpsLog;
+  if (log && log.length > 0) {
+    log[log.length - 1].duration = now - timerState.lastBpsChange;
+  }
+  const phaseType = phase || timerState.phase;
+  timerState.bpsLog.push({ bps: newBps, start: now, duration: 0, phase: phaseType });
+  timerState.lastBpsChange = now;
+  timerState.currentBps = newBps;
+}
+
+function calcBpsStats() {
+  const log = timerState.bpsLog;
+  if (!log || log.length === 0) return { avg: 0, highAvg: 0, lowAvg: 0 };
+  const now = Date.now();
+  log[log.length - 1].duration = now - timerState.lastBpsChange;
+  let totalW = 0, totalD = 0, highW = 0, highD = 0, lowW = 0, lowD = 0;
+  for (const e of log) {
+    totalW += e.bps * e.duration;
+    totalD += e.duration;
+    if (e.phase === 'work') { highW += e.bps * e.duration; highD += e.duration; }
+    if (e.phase === 'rest') { lowW += e.bps * e.duration; lowD += e.duration; }
+  }
+  return {
+    avg: totalD > 0 ? (totalW / totalD).toFixed(1) : '0',
+    highAvg: highD > 0 ? (highW / highD).toFixed(1) : '0',
+    lowAvg: lowD > 0 ? (lowW / lowD).toFixed(1) : '0'
+  };
+}
+
+function adjustBps(delta) {
+  if (!timerState.running || !timerState.config.rhythm) return;
+  const newBps = Math.max(0.5, Math.round((timerState.currentBps + delta) * 10) / 10);
+  logBps(newBps);
+  startRhythm(newBps);
+  bpsValue.textContent = newBps.toFixed(1);
 }
 
 // ===== SPEECH =====
@@ -364,6 +435,15 @@ function openConfig(workout) {
     cfgCoaching.checked = true;
   }
 
+  if (workout.defaults.rhythm) {
+    fieldRhythm.style.display = '';
+    cfgHighBps.value = workout.defaults.rhythm.highBps;
+    cfgLowBps.value = workout.defaults.rhythm.lowBps;
+    cfgCoaching.checked = false;
+  } else {
+    fieldRhythm.style.display = 'none';
+  }
+
   updateConfigSummary();
   showScreen('config');
 }
@@ -400,6 +480,10 @@ function updateConfigSummary() {
   } else if (currentWorkout && currentWorkout.defaults.tick) {
     const tick = parseInt(cfgTick.value) || 10;
     configSummary.textContent = `Total: ${mins}m ${secs.toString().padStart(2, '0')}s \u2022 ${rounds} rounds \u2022 tick every ${tick}s`;
+  } else if (currentWorkout && currentWorkout.defaults.rhythm) {
+    const hi = parseFloat(cfgHighBps.value) || 2.0;
+    const lo = parseFloat(cfgLowBps.value) || 1.0;
+    configSummary.textContent = `Total: ${mins}m ${secs.toString().padStart(2, '0')}s \u2022 ${rounds} cycles \u2022 ${hi} / ${lo} BPS`;
   } else {
     configSummary.textContent = `Total time: ${mins}m ${secs.toString().padStart(2, '0')}s \u2022 ${rounds} rounds`;
   }
@@ -410,14 +494,17 @@ document.addEventListener('click', (e) => {
   const btn = e.target.closest('.stepper-btn');
   if (!btn) return;
   const input = document.getElementById(btn.dataset.target);
-  const delta = parseInt(btn.dataset.delta);
-  const newVal = Math.max(parseInt(input.min), Math.min(parseInt(input.max), (parseInt(input.value) || 0) + delta));
-  input.value = newVal;
+  const delta = parseFloat(btn.dataset.delta);
+  const min = parseFloat(input.min);
+  const max = parseFloat(input.max);
+  const cur = parseFloat(input.value) || 0;
+  const newVal = Math.max(min, Math.min(max, Math.round((cur + delta) * 10) / 10));
+  input.value = input.step && parseFloat(input.step) < 1 ? newVal.toFixed(1) : newVal;
   updateConfigSummary();
 });
 
 // Input change
-[cfgWork, cfgRest, cfgRounds, cfgPrep, cfgSets, cfgTick].forEach(input => {
+[cfgWork, cfgRest, cfgRounds, cfgPrep, cfgSets, cfgTick, cfgHighBps, cfgLowBps].forEach(input => {
   input.addEventListener('change', updateConfigSummary);
 });
 
@@ -460,7 +547,11 @@ function startWorkout() {
     sets: sets,
     coaching: currentWorkout?.coaching || null,
     voiceCoaching: cfgCoaching.checked,
-    tick: currentWorkout?.defaults?.tick ? (parseInt(cfgTick.value) || 10) : 0
+    tick: currentWorkout?.defaults?.tick ? (parseInt(cfgTick.value) || 10) : 0,
+    rhythm: currentWorkout?.defaults?.rhythm ? {
+      highBps: parseFloat(cfgHighBps.value) || 2.0,
+      lowBps: parseFloat(cfgLowBps.value) || 1.0
+    } : null
   };
 
   timerState = {
@@ -472,12 +563,24 @@ function startWorkout() {
     paused: false,
     intervalId: null,
     config,
-    startTime: Date.now()
+    startTime: Date.now(),
+    bpsLog: [],
+    bpsLogHigh: [],
+    bpsLogLow: [],
+    lastBpsChange: Date.now(),
+    currentBps: 0
   };
 
   showScreen('timer');
   updateTimerDisplay();
   requestWakeLock();
+
+  if (config.rhythm) {
+    bpsAdjuster.classList.add('visible');
+  } else {
+    bpsAdjuster.classList.remove('visible');
+  }
+
   if (config.voiceCoaching && config.exercises) {
     speak('Get ready. ' + config.exercises[0]);
   }
@@ -552,6 +655,12 @@ function advancePhase() {
     timerState.phase = 'work';
     timerState.timeLeft = config.work;
     timerState.totalPhaseTime = config.work;
+    if (config.rhythm) {
+      const bps = config.rhythm.highBps;
+      logBps(bps, 'work');
+      startRhythm(bps);
+      bpsValue.textContent = bps.toFixed(1);
+    }
     if (voice && config.exercises) {
       speak(config.exercises[0], beepWork);
     } else if (voice) {
@@ -568,6 +677,12 @@ function advancePhase() {
       timerState.phase = 'rest';
       timerState.timeLeft = config.rest;
       timerState.totalPhaseTime = config.rest;
+      if (config.rhythm) {
+        const bps = config.rhythm.lowBps;
+        logBps(bps, 'rest');
+        startRhythm(bps);
+        bpsValue.textContent = bps.toFixed(1);
+      }
       if (voice && config.exercises) {
         const nextExIdx = round % config.exercises.length;
         speak('Rest. Next, ' + config.exercises[nextExIdx], beepRest);
@@ -581,6 +696,12 @@ function advancePhase() {
       timerState.phase = 'work';
       timerState.timeLeft = config.work;
       timerState.totalPhaseTime = config.work;
+      if (config.rhythm) {
+        const bps = config.rhythm.highBps;
+        logBps(bps, 'work');
+        startRhythm(bps);
+        bpsValue.textContent = bps.toFixed(1);
+      }
       if (voice && config.exercises) {
         const exIdx = (timerState.round - 1) % config.exercises.length;
         speak(config.exercises[exIdx], beepWork);
@@ -595,6 +716,12 @@ function advancePhase() {
     timerState.phase = 'work';
     timerState.timeLeft = config.work;
     timerState.totalPhaseTime = config.work;
+    if (config.rhythm) {
+      const bps = config.rhythm.highBps;
+      logBps(bps, 'work');
+      startRhythm(bps);
+      bpsValue.textContent = bps.toFixed(1);
+    }
     if (voice && config.exercises) {
       const exIdx = (timerState.round - 1) % config.exercises.length;
       speak(config.exercises[exIdx], beepWork);
@@ -610,7 +737,9 @@ function updateTimerDisplay() {
   const { phase, round, timeLeft, totalPhaseTime, config } = timerState;
 
   // Phase label
-  const labels = { prep: 'GET READY', work: 'WORK', rest: 'REST' };
+  const rhythmLabels = { prep: 'GET READY', work: 'HIGH RHYTHM', rest: 'LOW RHYTHM' };
+  const defaultLabels = { prep: 'GET READY', work: 'WORK', rest: 'REST' };
+  const labels = config.rhythm ? rhythmLabels : defaultLabels;
   phaseLabel.textContent = labels[phase];
   phaseLabel.className = 'phase-label phase-' + phase;
 
@@ -715,15 +844,21 @@ function togglePause() {
   if (timerState.paused) {
     iconPause.classList.add('hidden');
     iconPlay.classList.remove('hidden');
+    stopRhythm();
   } else {
     iconPause.classList.remove('hidden');
     iconPlay.classList.add('hidden');
+    if (timerState.config.rhythm && timerState.currentBps > 0) {
+      startRhythm(timerState.currentBps);
+    }
   }
 }
 
 function stopWorkout() {
   timerState.running = false;
   if (timerState.intervalId) clearInterval(timerState.intervalId);
+  stopRhythm();
+  bpsAdjuster.classList.remove('visible');
   releaseWakeLock();
   showScreen('select');
 }
@@ -731,6 +866,8 @@ function stopWorkout() {
 function finishWorkout() {
   timerState.running = false;
   if (timerState.intervalId) clearInterval(timerState.intervalId);
+  stopRhythm();
+  bpsAdjuster.classList.remove('visible');
   if (timerState.config.voiceCoaching) {
     speak('Workout complete!', beepComplete);
   } else {
@@ -743,9 +880,21 @@ function finishWorkout() {
   const secs = elapsed % 60;
   const { config } = timerState;
 
-  completeStats.innerHTML = config.exercises
-    ? `${config.exercises.length} exercises \u00D7 ${config.sets} sets completed<br>${config.work}s work / ${config.rest}s rest<br>Total time: ${mins}m ${secs.toString().padStart(2, '0')}s`
-    : `${config.rounds} rounds completed<br>${config.work}s work / ${config.rest}s rest<br>Total time: ${mins}m ${secs.toString().padStart(2, '0')}s`;
+  let statsHtml;
+  if (config.rhythm) {
+    const stats = calcBpsStats();
+    statsHtml = `${config.rounds} cycles completed<br>`
+      + `${Math.floor(config.work/60)}m high / ${Math.floor(config.rest/60)}m low<br>`
+      + `Total time: ${mins}m ${secs.toString().padStart(2, '0')}s<br><br>`
+      + `<strong>Avg BPS:</strong> ${stats.avg}<br>`
+      + `<strong>High phase avg:</strong> ${stats.highAvg} BPS<br>`
+      + `<strong>Low phase avg:</strong> ${stats.lowAvg} BPS`;
+  } else if (config.exercises) {
+    statsHtml = `${config.exercises.length} exercises \u00D7 ${config.sets} sets completed<br>${config.work}s work / ${config.rest}s rest<br>Total time: ${mins}m ${secs.toString().padStart(2, '0')}s`;
+  } else {
+    statsHtml = `${config.rounds} rounds completed<br>${config.work}s work / ${config.rest}s rest<br>Total time: ${mins}m ${secs.toString().padStart(2, '0')}s`;
+  }
+  completeStats.innerHTML = statsHtml;
 
   showScreen('complete');
 }
@@ -788,6 +937,10 @@ $('#btn-restart').addEventListener('click', () => {
   showScreen('config');
 });
 $('#btn-home').addEventListener('click', () => showScreen('select'));
+
+// BPS adjuster buttons
+$('#bps-up').addEventListener('click', () => adjustBps(0.5));
+$('#bps-down').addEventListener('click', () => adjustBps(-0.5));
 
 // Prevent double-tap zoom on timer buttons
 document.querySelectorAll('.timer-btn').forEach(btn => {
