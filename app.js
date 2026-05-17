@@ -854,7 +854,29 @@ function togglePause() {
   }
 }
 
-function stopWorkout() {
+function showStopOverlay() {
+  if (!timerState.paused) togglePause();
+  $('#stop-overlay').classList.remove('hidden');
+}
+
+function hideStopOverlay() {
+  $('#stop-overlay').classList.add('hidden');
+}
+
+function resumeWorkout() {
+  hideStopOverlay();
+  if (timerState.paused) togglePause();
+}
+
+function restartWorkout() {
+  hideStopOverlay();
+  if (timerState.intervalId) clearInterval(timerState.intervalId);
+  stopRhythm();
+  startWorkout();
+}
+
+function quitWorkout() {
+  hideStopOverlay();
   timerState.running = false;
   if (timerState.intervalId) clearInterval(timerState.intervalId);
   stopRhythm();
@@ -930,9 +952,12 @@ $('#btn-start').addEventListener('click', () => {
   startWorkout();
 });
 $('#btn-back-config').addEventListener('click', () => showScreen('select'));
-$('#btn-back-timer').addEventListener('click', stopWorkout);
+$('#btn-back-timer').addEventListener('click', showStopOverlay);
 $('#btn-pause').addEventListener('click', togglePause);
-$('#btn-stop').addEventListener('click', stopWorkout);
+$('#btn-stop').addEventListener('click', showStopOverlay);
+$('#btn-resume').addEventListener('click', resumeWorkout);
+$('#btn-restart-workout').addEventListener('click', restartWorkout);
+$('#btn-quit').addEventListener('click', quitWorkout);
 $('#btn-restart').addEventListener('click', () => {
   showScreen('config');
 });
