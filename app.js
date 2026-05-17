@@ -168,6 +168,14 @@ const WORKOUTS = [
     defaults: { work: 180, rest: 60, rounds: 8, prep: 5, rhythm: { highBps: 2.0, lowBps: 1.0 } }
   },
   {
+    id: 'bike-cadence',
+    name: 'Bike Cadence',
+    icon: '\u{1F6B4}',
+    desc: 'RPM cadence trainer with quick presets: 70-110 RPM',
+    color: 'blue',
+    defaults: { work: 180, rest: 60, rounds: 8, prep: 5, cadence: { highRpm: 95, lowRpm: 80 } }
+  },
+  {
     id: 'custom',
     name: 'Custom',
     icon: '\u2699',
@@ -220,6 +228,11 @@ const fieldRhythm = $('#field-rhythm');
 const bpsDisplay = $('#bps-display');
 const bpsValue = $('#bps-value');
 const bpsAdjuster = $('#bps-adjuster');
+const cadenceAdjuster = $('#cadence-adjuster');
+const rpmValue = $('#rpm-value');
+const cfgHighRpm = $('#cfg-high-rpm');
+const cfgLowRpm = $('#cfg-low-rpm');
+const fieldCadence = $('#field-cadence');
 
 // ===== STATE =====
 let currentWorkout = null;
@@ -343,6 +356,23 @@ function adjustBps(delta) {
   bpsValue.textContent = newBps.toFixed(1);
 }
 
+function rpmToBps(rpm) { return rpm / 60; }
+function bpsToRpm(bps) { return Math.round(bps * 60); }
+
+function setRpm(rpm) {
+  if (!timerState.running || !timerState.config.cadence) return;
+  rpm = Math.max(30, Math.min(150, rpm));
+  const bps = rpmToBps(rpm);
+  logBps(bps);
+  startRhythm(bps);
+  rpmValue.textContent = rpm;
+  timerState.currentRpm = rpm;
+}
+
+function adjustRpm(delta) {
+  setRpm((timerState.currentRpm || 90) + delta);
+}
+
 // ===== SPEECH =====
 let speechUnlocked = false;
 
@@ -444,6 +474,15 @@ function openConfig(workout) {
     fieldRhythm.style.display = 'none';
   }
 
+  if (workout.defaults.cadence) {
+    fieldCadence.style.display = '';
+    cfgHighRpm.value = workout.defaults.cadence.highRpm;
+    cfgLowRpm.value = workout.defaults.cadence.lowRpm;
+    cfgCoaching.checked = false;
+  } else {
+    fieldCadence.style.display = 'none';
+  }
+
   updateConfigSummary();
   showScreen('config');
 }
@@ -480,10 +519,14 @@ function updateConfigSummary() {
   } else if (currentWorkout && currentWorkout.defaults.tick) {
     const tick = parseInt(cfgTick.value) || 10;
     configSummary.textContent = `Total: ${mins}m ${secs.toString().padStart(2, '0')}s \u2022 ${rounds} rounds \u2022 tick every ${tick}s`;
+  } else if (currentWorkout && currentWorkout.defaults.cadence) {
+    const hi = parseInt(cfgHighRpm.value) || 95;
+    const lo = parseInt(cfgLowRpm.value) || 80;
+    configSummary.textContent = `Total: ${mins}m ${secs.toString().padStart(2, '0')}s \u2022 ${rounds} cycles \u2022 ${hi} / ${lo} RPM`;
   } else if (currentWorkout && currentWorkout.defaults.rhythm) {
     const hi = parseFloat(cfgHighBps.value) || 2.0;
     const lo = parseFloat(cfgLowBps.value) || 1.0;
-    configSummary.textContent = `Total: ${mins}m ${secs.toString().padStart(2, '0')}s \u2022 ${rounds} cycles \u2022 ${hi} / ${lo} BPS`;
+    configSummary.textContent = `Total: ${mins}m ${secs.toString().padStart(2, '00')}s \u2022 ${rounds} cycles \u2022 ${hi} / ${lo} BPS`;
   } else {
     configSummary.textContent = `Total time: ${mins}m ${secs.toString().padStart(2, '0')}s \u2022 ${rounds} rounds`;
   }
@@ -504,7 +547,7 @@ document.addEventListener('click', (e) => {
 });
 
 // Input change
-[cfgWork, cfgRest, cfgRounds, cfgPrep, cfgSets, cfgTick, cfgHighBps, cfgLowBps].forEach(input => {
+[cfgWork, cfgRest, cfgRounds, cfgPrep, cfgSets, cfgTick, cfgHighBps, cfgLowBps, cfgHighRpm, cfgLowRpm].forEach(input => {
   input.addEventListener('change', updateConfigSummary);
 });
 
@@ -551,6 +594,10 @@ function startWorkout() {
     rhythm: currentWorkout?.defaults?.rhythm ? {
       highBps: parseFloat(cfgHighBps.value) || 2.0,
       lowBps: parseFloat(cfgLowBps.value) || 1.0
+    } : null,
+    cadence: currentWorkout?.defaults?.cadence ? {
+      highRpm: parseInt(cfgHighRpm.value) || 95,
+      lowRpm: parseInt(cfgLowRpm.value) || 80
     } : null
   };
 
@@ -568,7 +615,8 @@ function startWorkout() {
     bpsLogHigh: [],
     bpsLogLow: [],
     lastBpsChange: Date.now(),
-    currentBps: 0
+    currentBps: 0,
+    currentRpm: config.cadence ? config.cadence.highRpm : 0
   };
 
   showScreen('timer');
@@ -579,6 +627,13 @@ function startWorkout() {
     bpsAdjuster.classList.add('visible');
   } else {
     bpsAdjuster.classList.remove('visible');
+  }
+
+  if (config.cadence) {
+    cadenceAdjuster.classList.add('visible');
+    rpmValue.textContent = config.cadence.highRpm;
+  } else {
+    cadenceAdjuster.classList.remove('visible');
   }
 
   if (config.voiceCoaching && config.exercises) {
@@ -651,16 +706,28 @@ function advancePhase() {
   const { phase, round, config } = timerState;
   const voice = config.voiceCoaching;
 
+  function setCadenceForPhase(p) {
+    if (config.rhythm) {
+      const bps = p === 'work' ? config.rhythm.highBps : config.rhythm.lowBps;
+      logBps(bps, p);
+      startRhythm(bps);
+      bpsValue.textContent = bps.toFixed(1);
+    }
+    if (config.cadence) {
+      const rpm = p === 'work' ? config.cadence.highRpm : config.cadence.lowRpm;
+      const bps = rpmToBps(rpm);
+      logBps(bps, p);
+      startRhythm(bps);
+      timerState.currentRpm = rpm;
+      rpmValue.textContent = rpm;
+    }
+  }
+
   if (phase === 'prep') {
     timerState.phase = 'work';
     timerState.timeLeft = config.work;
     timerState.totalPhaseTime = config.work;
-    if (config.rhythm) {
-      const bps = config.rhythm.highBps;
-      logBps(bps, 'work');
-      startRhythm(bps);
-      bpsValue.textContent = bps.toFixed(1);
-    }
+    setCadenceForPhase('work');
     if (voice && config.exercises) {
       speak(config.exercises[0], beepWork);
     } else if (voice) {
@@ -677,12 +744,7 @@ function advancePhase() {
       timerState.phase = 'rest';
       timerState.timeLeft = config.rest;
       timerState.totalPhaseTime = config.rest;
-      if (config.rhythm) {
-        const bps = config.rhythm.lowBps;
-        logBps(bps, 'rest');
-        startRhythm(bps);
-        bpsValue.textContent = bps.toFixed(1);
-      }
+      setCadenceForPhase('rest');
       if (voice && config.exercises) {
         const nextExIdx = round % config.exercises.length;
         speak('Rest. Next, ' + config.exercises[nextExIdx], beepRest);
@@ -696,12 +758,7 @@ function advancePhase() {
       timerState.phase = 'work';
       timerState.timeLeft = config.work;
       timerState.totalPhaseTime = config.work;
-      if (config.rhythm) {
-        const bps = config.rhythm.highBps;
-        logBps(bps, 'work');
-        startRhythm(bps);
-        bpsValue.textContent = bps.toFixed(1);
-      }
+      setCadenceForPhase('work');
       if (voice && config.exercises) {
         const exIdx = (timerState.round - 1) % config.exercises.length;
         speak(config.exercises[exIdx], beepWork);
@@ -716,12 +773,7 @@ function advancePhase() {
     timerState.phase = 'work';
     timerState.timeLeft = config.work;
     timerState.totalPhaseTime = config.work;
-    if (config.rhythm) {
-      const bps = config.rhythm.highBps;
-      logBps(bps, 'work');
-      startRhythm(bps);
-      bpsValue.textContent = bps.toFixed(1);
-    }
+    setCadenceForPhase('work');
     if (voice && config.exercises) {
       const exIdx = (timerState.round - 1) % config.exercises.length;
       speak(config.exercises[exIdx], beepWork);
@@ -738,8 +790,9 @@ function updateTimerDisplay() {
 
   // Phase label
   const rhythmLabels = { prep: 'GET READY', work: 'HIGH RHYTHM', rest: 'LOW RHYTHM' };
+  const cadenceLabels = { prep: 'GET READY', work: 'HIGH CADENCE', rest: 'LOW CADENCE' };
   const defaultLabels = { prep: 'GET READY', work: 'WORK', rest: 'REST' };
-  const labels = config.rhythm ? rhythmLabels : defaultLabels;
+  const labels = config.cadence ? cadenceLabels : config.rhythm ? rhythmLabels : defaultLabels;
   phaseLabel.textContent = labels[phase];
   phaseLabel.className = 'phase-label phase-' + phase;
 
@@ -848,7 +901,7 @@ function togglePause() {
   } else {
     iconPause.classList.remove('hidden');
     iconPlay.classList.add('hidden');
-    if (timerState.config.rhythm && timerState.currentBps > 0) {
+    if ((timerState.config.rhythm || timerState.config.cadence) && timerState.currentBps > 0) {
       startRhythm(timerState.currentBps);
     }
   }
@@ -881,6 +934,7 @@ function quitWorkout() {
   if (timerState.intervalId) clearInterval(timerState.intervalId);
   stopRhythm();
   bpsAdjuster.classList.remove('visible');
+  cadenceAdjuster.classList.remove('visible');
   releaseWakeLock();
   showScreen('select');
 }
@@ -890,6 +944,7 @@ function finishWorkout() {
   if (timerState.intervalId) clearInterval(timerState.intervalId);
   stopRhythm();
   bpsAdjuster.classList.remove('visible');
+  cadenceAdjuster.classList.remove('visible');
   if (timerState.config.voiceCoaching) {
     speak('Workout complete!', beepComplete);
   } else {
@@ -903,7 +958,18 @@ function finishWorkout() {
   const { config } = timerState;
 
   let statsHtml;
-  if (config.rhythm) {
+  if (config.cadence) {
+    const stats = calcBpsStats();
+    const avgRpm = Math.round(stats.avg * 60);
+    const highRpm = Math.round(stats.highAvg * 60);
+    const lowRpm = Math.round(stats.lowAvg * 60);
+    statsHtml = `${config.rounds} cycles completed<br>`
+      + `${Math.floor(config.work/60)}m high / ${Math.floor(config.rest/60)}m low<br>`
+      + `Total time: ${mins}m ${secs.toString().padStart(2, '0')}s<br><br>`
+      + `<strong>Avg cadence:</strong> ${avgRpm} RPM<br>`
+      + `<strong>High phase avg:</strong> ${highRpm} RPM<br>`
+      + `<strong>Low phase avg:</strong> ${lowRpm} RPM`;
+  } else if (config.rhythm) {
     const stats = calcBpsStats();
     statsHtml = `${config.rounds} cycles completed<br>`
       + `${Math.floor(config.work/60)}m high / ${Math.floor(config.rest/60)}m low<br>`
@@ -966,6 +1032,13 @@ $('#btn-home').addEventListener('click', () => showScreen('select'));
 // BPS adjuster buttons
 $('#bps-up').addEventListener('click', () => adjustBps(0.5));
 $('#bps-down').addEventListener('click', () => adjustBps(-0.5));
+
+// RPM adjuster buttons
+$('#rpm-up').addEventListener('click', () => adjustRpm(5));
+$('#rpm-down').addEventListener('click', () => adjustRpm(-5));
+document.querySelectorAll('.cadence-preset').forEach(btn => {
+  btn.addEventListener('click', () => setRpm(parseInt(btn.dataset.rpm)));
+});
 
 // Prevent double-tap zoom on timer buttons
 document.querySelectorAll('.timer-btn').forEach(btn => {
